@@ -1,0 +1,49 @@
+---
+title: "HW5"
+author: "Sara O'Brien"
+date: "3/21/2023"
+output: html_document
+---
+
+```{r}
+set.seed(730317945)
+install.packages("randomizeR")
+library(randomizeR)
+
+# https://eclass.uoa.gr/modules/document/file.php/MED1174/R%20Labs/Lab%203%3A%20Randomization%20schemes/lab3.pdf
+x = udPar(N=60, ini = 1, add = 1, groups = LETTERS[1:2])
+y = genSeq(x,r = 5,seed = 730317945)
+y
+
+urnModel = function(n)
+{
+na = 1
+nb = 1
+prob = rep(NA,n)
+trt = rep(NA,n)
+u = runif(n)
+for (i in 1:n)
+{
+# Probability of getting A
+prob[i] = nb/(na+nb)
+if (u[i]<prob[i])
+{
+trt[i] = "A"
+na = na + 1
+} else{trt[i] = "B";nb = nb + 1}
+}
+return(data.frame(treatment = trt,probA = prob,na = na,nb = nb))
+}
+
+set.seed(730317945)
+N = 60
+reps = 100
+# Results
+results = data.frame(SR = rep(NA,reps),BR = NA,urn = NA)
+for (i in 1:reps)
+{
+data = urnModel(N)
+results$urn[i] = table(data$treatment)[1]/N
+}
+```
+

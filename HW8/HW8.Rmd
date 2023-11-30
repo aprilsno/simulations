@@ -1,0 +1,167 @@
+---
+title: "HW8"
+author: "Sara O'Brien"
+date: "4/13/2023"
+output: html_document
+---
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Set simulation parameters
+n_sim <- 1000  # number of simulations
+n <- 24  # sample size per group
+meandiff <- 0.8  # true mean difference
+sd_within <- 0.7416198487  # within-subject standard deviation
+sd1 <- 0.5  # between-subject standard deviation in group A
+sd2 <- 1.0  # between-subject standard deviation in group B
+r <- 0.15  # correlation between two within-subject measurements
+
+# Generate simulated data sets
+p_value <- replicate(n_sim, {
+  x1 <- rnorm(n, mean = 0, sd = sd1)
+  x2 <- rnorm(n, mean = meandiff, sd = sd2)
+  y1 <- rnorm(n, mean = x1, sd = sd_within)
+  y2 <- rnorm(n, mean = x2, sd = sd_within)
+  d <- y2 - y1
+  t.test(na.omit(d), mu = meandiff, alternative = "greater", paired = TRUE)$p.value
+})
+
+# Calculate power
+power <- mean(p_value < 0.05)
+
+# Print power
+cat("Power of the test =", round(power, 2), "\n")
+```
+
+```{r}
+# Simulation parameters
+set.seed(123)
+n_sim <- 1000
+n_per_grp <- 33
+n_washout <- 3
+n_period <- 5
+n_total <- n_per_grp * 2
+
+# True values
+sd_a <- 0.5
+sd_b <- 1.0
+corr <- 0.15
+meandiff <- 0.8
+
+# Empty vectors to store results
+power <- numeric(n_sim)
+
+# Loop for 1000 simulations
+for (i in 1:n_sim) {
+  
+  # Generate data
+  subj_id <- rep(1:n_per_grp, 2)
+  grp <- rep(c("A", "B"), each = n_per_grp)
+  period <- rep(c(1, 2), each = n_per_grp)
+  
+  # Generate correlated data
+  corr_mat <- matrix(c(1, corr, corr, 1), ncol = 2)
+  dat <- mvrnorm(n_total, mu = c(0, 0), Sigma = corr_mat)
+  
+  # Assign standard deviations based on group
+  dat_a <- ifelse(grp == "A", dat[,1] * sd_a, dat[,2] * sd_b)
+  dat_b <- ifelse(grp == "A", dat[,2] * sd_b, dat[,1] * sd_a)
+  
+  # Add mean difference
+  dat_a <- dat_a + meandiff / 2
+  dat_b <- dat_b - meandiff / 2
+  
+  # Add washout period
+  dat_a[period == 2] <- dat_a[period == 2] + rnorm(n_per_grp, mean = 0, sd = sd_a)
+  dat_b[period == 2] <- dat_b[period == 2] + rnorm(n_per_grp, mean = 0, sd = sd_b)
+  
+  # Calculate biomarker differences
+  d <- dat_a[period == 2] - dat_b[period == 1]
+  
+  # Conduct t-test with one-sided alternative
+  ttest <- t.test(d, mu = meandiff, alternative = "greater", paired = TRUE)
+  
+  # Store power for this simulation
+  power[i] <- ttest$power
+  
+}
+
+# Calculate power and 95% CI
+power_mean <- mean(power)
+power_ci_lower <- quantile(power, 0.025)
+power_ci_upper <- quantile(power, 0.975)
+
+# Print results
+cat("Simulation results:\n")
+cat(paste("True power:", power_true, "\n"))
+cat(paste("Estimated power:", power_mean, "\n"))
+cat(paste("95% CI:", power_ci_lower, "-", power_ci_upper, "\n"))
+```
+
+```{r}
+# Parameters
+set.seed(730317945) # for reproducibility
+n_sims <- 1000 # number of simulations
+n <- 14 # sample size per group
+alpha <- 0.1 # significance level
+power <- 0.8 # desired power
+sd_a <- 0.5 # between-subject standard deviation for treatment A
+sd_b <- 1.0 # between-subject standard deviation for treatment B
+corr <- 0.15 # correlation between within-subject measurements
+meandiff <- 0.8 # true mean difference
+sd_within <- sqrt((sd_a^2 + sd_b^2 - 2*corr*sd_a*sd_b)/(2*(1-corr))) # within-subject std
+
+# Simulation
+delta <- meandiff / sd_within
+n_total <- 2 * n
+n_per_group <- n
+power_actual <- replicate(n_sims, {
+  # Simulate Data
+  d <- data.frame(
+    subject = rep(1:n, 2),
+    treatment = rep(c("A", "B"), each = n),
+    outcome = rnorm(n_total, mean = c(meandiff, 0), sd = sd_within)
+  )
+  
+  # Compute Test Statistic and P-value
+  res <- t.test(d$outcome ~ d$treatment, paired = TRUE, alternative = "greater")
+  
+  # Determine if Null Hypothesis is Rejected
+  res$p.value <= alpha
+})
+
+actual_power <- 1-mean(power_actual)
+
+# Print Results
+cat("Power:", actual_power, "\n")
+```
+
+```{r}
+install.packages('pwr')
+library(pwr)
+
+# Set parameters
+alpha <- 0.1
+power <- 0.8
+sd_a <- 0.5
+sd_b <- 1.0
+cor <- 0.15
+meandiff <- 0.8
+
+# Calculate within-subject standard deviation
+sd_within <- sqrt((sd_a^2 + sd_b^2 - 2*cor*sd_a*sd_b)/(2*(1-cor)))
+sd_within
+
+# Calculate sample size per group
+n_per_group <- pwr.t.test(d = meandiff/sd_within, sig.level = alpha, power = power, type = "paired")$n
+
+# Calculate total sample size
+n_total <- 2*n_per_group
+
+# Print results
+cat("Sample size per group:", n_per_group, "\n")
+cat("Total sample size:", n_total, "\n")
+```
+

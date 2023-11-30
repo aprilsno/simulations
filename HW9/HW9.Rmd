@@ -1,0 +1,94 @@
+---
+title: "HW9"
+author: "Sara O'Brien"
+date: "4/18/2023"
+output: html_document
+---
+
+```{r, fig.width=5,fig.height=10}
+# Set seed as PID
+set.seed(730317945)
+
+# Initialize matrix to store coefficients
+coefficients_mat <- matrix(0, nrow = 300, ncol = 12)
+
+# Replicate simulation 300 times
+for (i in 1:300) {
+  
+  # Simulate data with covariates x1, x2, and z
+  .n <- 1000
+  .d <- data.frame(x1 = rnorm(.n))
+  .d$x2 <- sqrt(0.5)*.d$x1 + rnorm(.n, sd=sqrt(0.5))
+  .d$z <- as.numeric(.d$x1 + .d$x2 > 0)
+  
+  # Generate outcome
+  .d$y <- 2.0 + 1.0*.d$x1 + 1.0*.d$x2 - 1.0*.d$z + rnorm(.n)
+  
+  # Generate error-prone covariates w1 and w2
+  Sigma_error <- diag(c(0.20, 0.30))
+  dimnames(Sigma_error) <- list(c("w1","w2"), c("w1","w2"))
+  .d$w1 <- .d$x1 + rnorm(.n, sd = sqrt(Sigma_error["w1","w1"]))
+  .d$w2 <- .d$x2 + rnorm(.n, sd = sqrt(Sigma_error["w2","w2"]))
+  
+  # Fit models without measurement error in covariates
+  .mod0 <- lm(y ~ w1 + w2 + z, data = .d)
+  
+  # Fit model with measurement error in covariates
+  .mod1 <- lm(y ~ x1 + x2 + z, data = .d)
+  
+  # Store coefficients
+  coefficients_mat[i, ] <- cbind(c(2.0,1.0,1.0,-1.0), .mod1$coefficients, .mod0$coefficients)
+}
+
+
+colnames(coefficients_mat) <- c("true_intercept", "true_x1", "true_x2", "true_z", "intercept_ME", "x1_ME", "x2_ME", "z_ME", "intercept_noME", "x1_noME", "x2_noME", "z_noME")
+analysis <- data.frame(coefficients_mat)
+
+# Compute mean and standard deviation of coefficients
+mean_intercept_ME <- mean(analysis$intercept_ME)
+sd_intercept_ME <- sd(analysis$intercept_ME)
+mean_intercept_noME <- mean(analysis$intercept_noME)
+sd_intercept_noME <- sd(analysis$intercept_noME)
+
+mean_x1_ME <- mean(analysis$x1_ME)
+sd_x1_ME <- sd(analysis$x1_ME)
+mean_x1_noME <- mean(analysis$x1_noME)
+sd_x1_noME <- sd(analysis$x1_noME)
+
+mean_x2_ME <- mean(analysis$x2_ME)
+sd_x2_ME <- sd(analysis$x2_ME)
+mean_x2_noME <- mean(analysis$x2_noME)
+sd_x2_noME <- sd(analysis$x2_noME)
+
+mean_z_ME <- mean(analysis$z_ME)
+sd_z_ME <- sd(analysis$z_ME)
+mean_z_noME <- mean(analysis$z_noME)
+sd_z_noME <- sd(analysis$z_noME)
+
+results <- data.frame(mean_intercept_ME,sd_intercept_ME,mean_intercept_noME,sd_intercept_noME,mean_x1_ME,sd_x1_ME,mean_x1_noME,sd_x1_noME,mean_x2_ME,sd_x2_ME,mean_x2_noME,sd_x2_noME,mean_z_ME,sd_z_ME,mean_z_noME,sd_z_noME)
+
+results
+
+# Create histograms of estimations across replications
+library(tidyverse)
+library(patchwork)
+p1 <- ggplot(analysis, aes(x=intercept_ME)) + geom_histogram() + geom_vline(aes(xintercept=2,color='red')) + theme(legend.position = "none") + ggtitle('Intercept w/ Measurement Error')
+p2 <- ggplot(analysis, aes(x=intercept_noME)) + geom_histogram() + geom_vline(aes(xintercept=2,color='red')) + theme(legend.position = "none") + ggtitle('Intercept w/o Measurement Error')
+inter_dist <- p1+p2
+
+p3 <- ggplot(analysis, aes(x=x1_ME)) + geom_histogram() + geom_vline(aes(xintercept=1,color='red')) + theme(legend.position = "none") + ggtitle('x_1 w/ Measurement Error')
+p4 <- ggplot(analysis, aes(x=x1_noME)) + geom_histogram() + geom_vline(aes(xintercept=1,color='red')) + theme(legend.position = "none") + ggtitle('x_1 w/o Measurement Error')
+x1_dist <- p3+p4
+
+p5 <- ggplot(analysis, aes(x=x2_ME)) + geom_histogram() + geom_vline(aes(xintercept=1,color='red')) + theme(legend.position = "none") + ggtitle('x_2 w/ Measurement Error')
+p6 <- ggplot(analysis, aes(x=x2_noME)) + geom_histogram() + geom_vline(aes(xintercept=1,color='red')) + theme(legend.position = "none") + ggtitle('x_2 w/o Measurement Error')
+x2_dist <- p5+p6
+
+p7 <- ggplot(analysis, aes(x=z_ME)) + geom_histogram() + geom_vline(aes(xintercept=-1,color='red')) + theme(legend.position = "none") + ggtitle('z w/ Measurement Error')
+p8 <- ggplot(analysis, aes(x=z_noME)) + geom_histogram() + geom_vline(aes(xintercept=-1,color='red')) + theme(legend.position = "none") + ggtitle('z w/o Measurement Error')
+p8
+z_dist <- p7+p8
+
+inter_dist / x1_dist / x2_dist / z_dist 
+```
+

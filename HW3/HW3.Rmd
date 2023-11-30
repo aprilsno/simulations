@@ -1,0 +1,87 @@
+---
+title: "668 HW_3"
+author: "Sara O'Brien"
+date: "2/14/2023"
+output: html_document
+---
+
+```{r}
+#  Code for Simon's Optimal 2-stage design
+
+Simon_Optim <- function(p0,p1, alpha, beta, max_N = 30){ 
+  #  p0 = 0.30; p1 = 0.60; alpha = 0.10; beta = 0.20; max_N = 50; 
+  ## initialization  
+  low_n = floor( 0.25*(p0+p1)*(2-p0-p1)*( ( ( qnorm(1-alpha)+qnorm(1-beta))/(p1-p0) )**2)) 
+  stat <- 0;  
+  opt_n <- max_N; 
+   
+  res <- NULL  
+   
+  for (n in (max(low_n - 5, 10)):max_N ){ 
+    n1 <- 0 
+    while (n1 < n - 1){ 
+      n1 <- n1 + 1  
+      for (r1 in 0:n1){ 
+        term1_p0 = pbinom(q = r1, size = n1, prob = p0)  ## prob (Y1 <= r1 | p = p0); prob of early terminate 
+        term1_p1 = pbinom(q = r1, size = n1, prob = p1)  ## prob (Y1 <= r1 | p = p1); part of type 2 error  
+        if (term1_p1 <= beta) { # & n1+(1-term1_p0)*(n-n1) < opt_n){  ## continue if the designs are feasible  
+          stat <- 0 
+          r <- n + 1  
+          while ( r >= r1 & stat == 0){ 
+            r <- r - 1 
+          #for (r in n:r1 ){ 
+            term2_p0=0; # initialize the summation terms for alpha & beta calculations; 
+            term2_p1=0; 
+            for (x in (r1 + 1):(min(r, n1)) ){ 
+              dum0 <- dbinom(x = x, size = n1, prob = p0)*pbinom(q = r - x, size = n - n1, prob = p0)  
+              dum1 <- dbinom(x = x, size = n1, prob = p1)*pbinom(q = r - x, size = n - n1, prob = p1)  
+              term2_p0 <- term2_p0 + dum0;  
+              term2_p1 <- term2_p1 + dum1; 
+            } 
+            if ( 1-(term1_p0+term2_p0) <= alpha & (term1_p1+term2_p1) <= beta) {  
+              opt_n= n1+(1-term1_p0)*(n-n1);  
+              stat = 1;               
+              real_alpha <- 1-(term1_p0+term2_p0) 
+              real_beta <-  (term1_p1+term2_p1) 
+              PET <- term1_p0  # the probability of early termination 
+              EN <- n1+(1-PET)*(n-n1)  # minimal expected sample size under the null hypothesis
+              res <- rbind(res, c(p0, p1, alpha, beta, n1, r1, n, r, real_alpha, real_beta, PET, EN) ) 
+            } 
+          } 
+        }    
+      } 
+    } 
+  } 
+  if (!is.null(res)) 
+  { 
+    colnames(res) <- c("p0","p1", "alpha0", "beta0", "n1", "r1", "n", "r", "real_alpha", "real_beta", "PET", "EN") 
+    # res <- res[order(res[, 12]),] 
+  } 
+  return(res)   
+} 
+ 
+mydesign <- Simon_Optim(p0 = 0.30, p1 = 0.60, alpha=0.10, beta=0.20, max_N = 100) 
+ 
+mydesign
+```
+
+```{r}
+# Single stage simulation
+
+nrep <- 5000
+set.seed(730317945) # Set seed to PID
+
+Y.stats <- rep(NA, nrep)
+
+for (ii in 1:nrep)
+{
+p_0 <- 0.3  
+p_1 <- 0.6 
+n.samp <- 14  
+type1 <- round( pbinom(q = c(0:14), size = n.samp, prob = p_0, lower.tail = FALSE), 3)  ## Type 1 error  
+power <- round( pbinom(q = c(0:14), size = n.samp, prob = p_1, lower.tail = FALSE), 3)  ## power  
+
+}
+
+```
+
